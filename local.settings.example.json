@@ -1,0 +1,17 @@
+{
+  "IsEncrypted": false,
+  "Values": {
+    "AzureWebJobsStorage": "UseDevelopmentStorage=true",
+    "FUNCTIONS_WORKER_RUNTIME": "python",
+    "LLM_PROVIDER": "openai-compatible",
+    "LLM_BASE_URL": "",
+    "LLM_API_KEY": "",
+    "LLM_MODEL": "",
+    "LLM_API_VERSION": "",
+    "LLM_TIMEOUT_SECONDS": "30",
+    "LLM_MAX_AGENT_STEPS": "6",
+    "MOCK_API_BASE_URL": "https://upqupn62prlcmunoshnb6z5lxq0znfvi.lambda-url.us-east-1.on.aws",
+    "MOCK_API_KEY": "",
+    "KNOWLEDGE_TOP_K": "4"
+  }
+}

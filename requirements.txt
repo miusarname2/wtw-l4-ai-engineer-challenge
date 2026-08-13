@@ -1,0 +1,3 @@
+azure-functions>=1.21,<2
+httpx>=0.27,<1
+openai>=1.50,<2

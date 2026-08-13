@@ -1,0 +1,36 @@
+@baseUrl = http://localhost:7071
+
+### Health
+GET {{baseUrl}}/api/health
+
+### RAG
+POST {{baseUrl}}/api/ask
+Content-Type: application/json
+
+{
+  "question": "¿Cuánto dura el acceso privilegiado de emergencia?"
+}
+
+### Incident tool
+POST {{baseUrl}}/api/ask
+Content-Type: application/json
+
+{
+  "question": "¿Cuál es el estado de INC-1042?"
+}
+
+### RAG + service tool
+POST {{baseUrl}}/api/ask
+Content-Type: application/json
+
+{
+  "question": "Payments está caído. ¿Quién es responsable y cómo debo escalarlo?"
+}
+
+### Unknown information
+POST {{baseUrl}}/api/ask
+Content-Type: application/json
+
+{
+  "question": "¿Cuál es la contraseña del administrador de producción?"
+}
