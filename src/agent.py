@@ -12,6 +12,11 @@ from .tools import get_incident, get_service
 
 logger = logging.getLogger(__name__)
 
+# Session-scoped chat history, exposed as a simple role/content structure.
+# Can be overridden by passing previous_messages to run_agent() while staying
+# compatible with older call sites that only pass the current question.
+PreviousMessages: list[dict[str, Any]] = []
+
 TOOLS = [
     {
         "type": "function",
@@ -87,9 +92,48 @@ def _execute_tool(name: str, arguments: dict[str, Any], settings: Settings) -> A
     return {"error": f"unknown_tool:{name}"}
 
 
-def run_agent(question: str) -> AgentResult:
+def _normalize_previous_messages(
+    previous_messages: list[dict[str, Any]] | list[Any] | None,
+) -> list[dict[str, Any]]:
+    if not previous_messages:
+        return []
+
+    normalized: list[dict[str, Any]] = []
+    for message in previous_messages:
+        if isinstance(message, dict):
+            role = str(message.get("role", "user"))
+            content = message.get("content")
+            if role in {"user", "assistant"} and content is not None:
+                normalized.append({"role": role, "content": str(content)})
+            continue
+        normalized_message = _message_dict(message)
+        role = normalized_message.get("role")
+        content = normalized_message.get("content")
+        if role in {"user", "assistant"} and content is not None:
+            normalized.append({"role": str(role), "content": str(content)})
+    return normalized
+
+
+def _session_history(messages: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    return [
+        {"role": item["role"], "content": item["content"]}
+        for item in messages
+        if item.get("role") in {"user", "assistant"} and item.get("content") is not None
+    ]
+
+
+def run_agent(
+    question: str,
+    previous_messages: list[dict[str, Any]] | list[Any] | None = None,
+) -> AgentResult:
     settings = Settings.from_environment()
     client = build_llm_client(settings)
+
+    injected_messages = _normalize_previous_messages(
+        previous_messages if previous_messages is not None else PreviousMessages
+    )
+    if previous_messages is not None:
+        PreviousMessages[:] = injected_messages
 
     # Retrieve company context up front so it is available during orchestration.
     retrieved = search_documents(question, top_k=settings.knowledge_top_k)
@@ -109,8 +153,11 @@ CONTEXTO CORPORATIVO:
 {context}
 """.strip()
 
+    # Keep backwards compatibility with older code by allowing a direct question
+    # while still injecting the previous session context when available.
     messages: list[dict[str, Any]] = [
         {"role": "system", "content": system_prompt},
+        *injected_messages,
         {"role": "user", "content": question},
     ]
     tools_used: list[str] = []
@@ -132,6 +179,7 @@ CONTEXTO CORPORATIVO:
             answer = (getattr(message, "content", None) or "").strip()
             if not answer:
                 answer = "No fue posible generar una respuesta."
+            PreviousMessages[:] = _session_history(messages + [{"role": "assistant", "content": answer}])
             return AgentResult(
                 answer=answer,
                 sources=sources,
@@ -158,4 +206,5 @@ CONTEXTO CORPORATIVO:
                 }
             )
 
+    PreviousMessages[:] = _session_history(messages)
     raise AgentExecutionError("The agent did not finish after 12 model calls")

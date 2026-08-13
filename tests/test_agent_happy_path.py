@@ -53,3 +53,28 @@ def test_agent_can_execute_incident_tool(monkeypatch):
 
     assert "investigación" in result.answer
     assert result.tools_used == ["get_incident"]
+
+
+def test_agent_includes_previous_messages_in_context(monkeypatch):
+    fake_llm = FakeLLMClient([FakeMessage(content="Contexto recordado.")])
+    monkeypatch.setattr(agent.Settings, "from_environment", classmethod(lambda cls: _settings()))
+    monkeypatch.setattr(agent, "build_llm_client", lambda settings: fake_llm)
+    monkeypatch.setattr(
+        agent,
+        "search_documents",
+        lambda query, top_k: [SearchResult("incident-management.md", "context", 1.0)],
+    )
+
+    previous_messages = [
+        {"role": "user", "content": "¿Qué pasó con INC-1042?"},
+        {"role": "assistant", "content": "Lo estoy revisando."},
+    ]
+
+    agent.run_agent("¿Puedes confirmar el estado actual?", previous_messages=previous_messages)
+
+    sent_messages = fake_llm.calls[0]["messages"]
+    assert sent_messages[0]["role"] == "system"
+    assert sent_messages[1] == previous_messages[0]
+    assert sent_messages[2] == previous_messages[1]
+    assert sent_messages[3]["role"] == "user"
+    assert sent_messages[3]["content"] == "¿Puedes confirmar el estado actual?"
